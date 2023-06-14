@@ -2,16 +2,12 @@
 
 A Fyne-based UI for managing wireguard connections.
 
-## Requirements
+## Roadmap
 
-Builds upon the requirements for `wgnetgen`.
-
-- all flags from `wgnetgen` must be translated to form input fields in this
-
-- add a "description" and "in use" flags to each config
-- store everything into a sqlite gorm db
-- add & track clients
-- modified config in addition to auto-generated config
-  - later on: versioned changes to auto-generated configs?
-- QR code reader for generated configs
-  - generate png on the fly and render with Fyne
+- consider setting the peer config to a password multiline entry if it exists
+- add a collapse/show for QR code readout
+- consider adding a detector/'*' symbol when a device has actually changed
+- implement saving/loading arbitrary sqlite db files
+- update the landing screen
+- use a splash screen
+- future: add a tab for pinging other peers, and doing service checks

@@ -7,8 +7,10 @@ import (
 
 	"wgnetui/constants"
 	"wgnetui/database"
+	"wgnetui/generator"
 	"wgnetui/helpers"
 	"wgnetui/models"
+	"wgnetui/queries"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -19,6 +21,41 @@ import (
 
 var SelectedDevice models.WgConfig
 
+// Seems like TypedShortcuts still need some love. Accepting the fact that
+// a focused entry will override window focus events.
+//
+// https://github.com/fyne-io/fyne/issues/3038
+//
+
+// func NewEntryWithShortcuts() *entryWithShortcuts {
+// 	e := &entryWithShortcuts{
+// 		widget.NewEntry(),
+// 	}
+// 	e.ExtendBaseWidget(e)
+// 	e.Enable()
+// 	return e
+// }
+
+// type entryWithShortcuts struct {
+// 	*widget.Entry
+// }
+
+// // Used for enabling Ctrl+S support when an entry is focused, as well as
+// // anything else.
+// // https://developer.fyne.io/explore/shortcuts#adding-shortcuts-to-an-entry
+// func (m *entryWithShortcuts) TypedShortcut(s fyne.Shortcut) {
+// 	if _, ok := s.(*desktop.CustomShortcut); !ok {
+// 		m.Entry.TypedShortcut(s)
+// 		return
+// 	}
+
+// 	log.Println("Shortcut typed:", s)
+// }
+
+// refreshDevices accepts a pointer to a list of devices so that it can update
+// the data source for the Fyne list. Make sure to call list.Refresh() for the
+// Fyne list itself afterwards, if appropriate, or just use refreshDeviceList
+// to do both in one function call.
 func refreshDevices(devices *[]models.WgConfig) error {
 	result := database.DB.Find(&devices)
 	if result.Error != nil {
@@ -31,20 +68,39 @@ func refreshDevices(devices *[]models.WgConfig) error {
 	return nil
 }
 
+// refreshDevicesList will execute refreshDevices against the provided devices slice,
+// and will subsequently call list.Refresh. This is useful for bundling
+// the calls to update the list of devices and refreshing the list.
+// If either the devices or list pointers are nil, it will not do anything
+// aside from leaving a log message.
+func refreshDevicesList(devices *[]models.WgConfig, list *widget.List) error {
+	if list == nil || devices == nil {
+		log.Println("warning: refreshDeviceList has one or more nil pointers")
+		return nil
+	}
+
+	err := refreshDevices(devices)
+	if err != nil {
+		return err
+	}
+
+	list.Refresh()
+
+	return nil
+}
+
 // GetDevicesView returns a Fyne container that holds a view for assigning
 // devices and names, as a list.
 func GetDevicesView(w fyne.Window) (*container.Split, error) {
 	devices := []models.WgConfig{}
-	result := database.DB.Find(&devices)
-	if result.Error != nil {
-		return nil, fmt.Errorf(
-			"failed to get devices view: %v",
-			result.Error.Error(),
-		)
+
+	err := refreshDevices(&devices)
+	if err != nil {
+		return nil, err
 	}
 
 	nameEntry := widget.NewEntry()
-	nameEntry.SetPlaceHolder("device-01")
+	nameEntry.SetPlaceHolder("")
 	descriptionEntry := widget.NewMultiLineEntry()
 	descriptionEntry.SetPlaceHolder("Device description")
 	extraEntry := widget.NewMultiLineEntry()
@@ -86,138 +142,8 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 
 	var list *widget.List
 
-	deviceEditorForm := &widget.Form{
-		Items: []*widget.FormItem{
-			{Text: "Name", Widget: nameEntry, HintText: constants.HelpTextSelectedDeviceName},
-			{Text: "Config", Widget: configEntry, HintText: ""},
-			{Text: "Description", Widget: descriptionEntry, HintText: ""},
-			{Text: "Extra", Widget: extraEntry, HintText: ""},
-			{Text: "IP", Widget: ipEntry, HintText: ""},
-			{Text: "AllowedIPs", Widget: allowedIPsEntry, HintText: ""},
-			{Text: "PersistentKeepAlive", Widget: persistentKeepAliveEntry, HintText: ""},
-			{Text: "Mtu", Widget: mtuEntry, HintText: ""},
-			{Text: "Endpoint", Widget: endpointEntry, HintText: ""},
-			{Text: "EndpointPort", Widget: endpointPortEntry, HintText: ""},
-			{Text: "Dns", Widget: dnsEntry, HintText: ""},
-			{Text: "PrivateKey", Widget: privateKeyEntry, HintText: ""},
-			{Text: "PublicKey", Widget: publicKeyEntry, HintText: ""},
-			{Text: "PreSharedKey", Widget: preSharedKeyEntry, HintText: ""},
-		},
-		SubmitText: "Save",
-		OnSubmit: func() {
-			if database.DB == nil {
-				dialog.ShowError(
-					fmt.Errorf(constants.ErrorMessageNoDB),
-					w,
-				)
-				return
-			}
-
-			parsedPersistentKeepAlive, err := strconv.ParseUint(persistentKeepAliveEntry.Text, 10, 64)
-			if err != nil {
-				dialog.ShowError(
-					fmt.Errorf("The provided PersistentKeepAlive value was not valid: %v", err.Error()),
-					w,
-				)
-				return
-			}
-
-			parsedEndpointPortEntry, err := strconv.ParseUint(endpointPortEntry.Text, 10, 16)
-			if err != nil {
-				dialog.ShowError(
-					fmt.Errorf("The provided EndpointPort value was not valid: %v", err.Error()),
-					w,
-				)
-				return
-			}
-
-			parsedMTUEntry, err := strconv.ParseUint(mtuEntry.Text, 10, 16)
-			if err != nil {
-				dialog.ShowError(
-					fmt.Errorf("The provided MTU value was not valid: %v", err.Error()),
-					w,
-				)
-				return
-			}
-
-			// update the device in the DB
-			SelectedDevice.Name = nameEntry.Text
-			SelectedDevice.Config = configEntry.Text
-			SelectedDevice.Name = nameEntry.Text
-			SelectedDevice.Description = descriptionEntry.Text
-			SelectedDevice.Extra = extraEntry.Text
-			SelectedDevice.IP = ipEntry.Text
-			SelectedDevice.AllowedIPs = allowedIPsEntry.Text
-			SelectedDevice.PersistentKeepAlive = uint(parsedPersistentKeepAlive)
-			SelectedDevice.MTU = uint16(parsedMTUEntry)
-			SelectedDevice.Endpoint = endpointEntry.Text
-			SelectedDevice.EndpointPort = uint16(parsedEndpointPortEntry)
-			SelectedDevice.DNS = dnsEntry.Text
-			SelectedDevice.PrivateKey = privateKeyEntry.Text
-			SelectedDevice.PublicKey = publicKeyEntry.Text
-			SelectedDevice.PreSharedKey = preSharedKeyEntry.Text
-			result := database.DB.Save(SelectedDevice)
-			if result.Error != nil {
-				dialog.ShowError(
-					fmt.Errorf("Failed to save this device: %v", result.Error.Error()),
-					w,
-				)
-				return
-			}
-
-			if list != nil {
-				err = refreshDevices(&devices)
-				if err != nil {
-					dialog.ShowError(
-						fmt.Errorf(
-							"Failed to refresh devices list: %v", err.Error(),
-						),
-						w,
-					)
-					return
-				}
-				list.Refresh()
-			}
-
-			dialog.ShowInformation(
-				"Generated",
-				fmt.Sprintf("Device %v was saved successfully.", SelectedDevice.IP),
-				w,
-			)
-		},
-	}
-
-	listUpdateFn := func(i widget.ListItemID, o fyne.CanvasObject) {
-		if devices[i].IsServer {
-			o.(*widget.Label).SetText(
-				fmt.Sprintf("%v. %v [%v] [server]", i+1, devices[i].Name, devices[i].IP),
-			)
-			// o.(*widget.Label).SetIcon(theme.ComputerIcon())
-		} else {
-			o.(*widget.Label).SetText(
-				fmt.Sprintf("%v. %v [%v]", i+1, devices[i].Name, devices[i].IP),
-			)
-			// o.(*widget.Label).Importance = widget.LowImportance
-		}
-	}
-
-	list = widget.NewList(
-		func() int {
-			return len(devices)
-		},
-		func() fyne.CanvasObject {
-			b := widget.NewLabel("")
-			b.Alignment = fyne.TextAlignLeading
-			return b
-		},
-		listUpdateFn,
-	)
-
-	list.OnUnselected = func(id int) {
-		log.Printf("unselected %v", id)
-	}
-	list.OnSelected = func(id int) {
-		log.Printf("selected %v", id)
+	selectDeviceByID := func(id int) {
+		// log.Printf("selected %v", id)
 		if database.DB == nil {
 			dialog.ShowError(
 				fmt.Errorf(constants.ErrorMessageNoDB),
@@ -263,14 +189,232 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		deviceQR.Refresh()
 	}
 
-	rightSide := container.NewVScroll(container.NewVBox(
-		deviceQR,
-		deviceEditorForm,
-	))
-	c := container.NewHSplit(
-		container.NewScroll(list),
-		rightSide,
+	saveForm := func() {
+		if database.DB == nil {
+			dialog.ShowError(
+				fmt.Errorf(constants.ErrorMessageNoDB),
+				w,
+			)
+			return
+		}
+
+		parsedPersistentKeepAlive, err := strconv.ParseUint(persistentKeepAliveEntry.Text, 10, 64)
+		if err != nil {
+			dialog.ShowError(
+				fmt.Errorf("The provided PersistentKeepAlive value was not valid: %v", err.Error()),
+				w,
+			)
+			return
+		}
+
+		parsedEndpointPortEntry, err := strconv.ParseUint(endpointPortEntry.Text, 10, 16)
+		if err != nil {
+			dialog.ShowError(
+				fmt.Errorf("The provided EndpointPort value was not valid: %v", err.Error()),
+				w,
+			)
+			return
+		}
+
+		parsedMTUEntry, err := strconv.ParseUint(mtuEntry.Text, 10, 16)
+		if err != nil {
+			dialog.ShowError(
+				fmt.Errorf("The provided MTU value was not valid: %v", err.Error()),
+				w,
+			)
+			return
+		}
+
+		server, err := queries.GetServer()
+		if err != nil {
+			dialog.ShowError(
+				fmt.Errorf("Failed to retrieve server when saving device: %v", err.Error()),
+				w,
+			)
+			return
+		}
+
+		// update the device in the DB
+		SelectedDevice.Name = nameEntry.Text
+		SelectedDevice.Config = configEntry.Text
+		SelectedDevice.Name = nameEntry.Text
+		SelectedDevice.Description = descriptionEntry.Text
+		SelectedDevice.Extra = extraEntry.Text
+		SelectedDevice.IP = ipEntry.Text
+		SelectedDevice.AllowedIPs = allowedIPsEntry.Text
+		SelectedDevice.PersistentKeepAlive = uint(parsedPersistentKeepAlive)
+		SelectedDevice.MTU = uint16(parsedMTUEntry)
+		SelectedDevice.Endpoint = endpointEntry.Text
+		SelectedDevice.EndpointPort = uint16(parsedEndpointPortEntry)
+		SelectedDevice.DNS = dnsEntry.Text
+		SelectedDevice.PrivateKey = privateKeyEntry.Text
+		SelectedDevice.PublicKey = publicKeyEntry.Text
+		SelectedDevice.PreSharedKey = preSharedKeyEntry.Text
+
+		saveDevice := func() {
+			result := database.DB.Save(SelectedDevice)
+			if result.Error != nil {
+				dialog.ShowError(
+					fmt.Errorf("Failed to save this device: %v", result.Error.Error()),
+					w,
+				)
+				return
+			}
+
+			if list != nil {
+				err = refreshDevicesList(&devices, list)
+				if err != nil {
+					dialog.ShowError(
+						fmt.Errorf(
+							"Failed to refresh devices list: %v", err.Error(),
+						),
+						w,
+					)
+					return
+				}
+				selectDeviceByID(int(SelectedDevice.ID - 1))
+			}
+
+			dialog.ShowInformation(
+				"Saved Device",
+				fmt.Sprintf("Device %v was saved successfully.", SelectedDevice.IP),
+				w,
+			)
+		}
+
+		// we don't want to auto-generate the server's config, so just save it
+		// without a prompt
+		if SelectedDevice.IsServer {
+			saveDevice()
+			return
+		}
+
+		// ask if the user wants to regenerate the config or keep their current
+		// config
+		dialog.ShowConfirm(
+			"Update config?",
+			"If you've updated any values, the config for this device may need to be regenerated. This may wipe out any customizations you've made to it.",
+			func(confirmed bool) {
+				if confirmed {
+					newConfig, err := generator.GenerateConfig(
+						SelectedDevice,
+						server,
+					)
+					if err != nil {
+						dialog.ShowError(
+							fmt.Errorf("Failed to generate config for this device: %v", err.Error()),
+							w,
+						)
+						return
+					}
+
+					SelectedDevice.Config = newConfig
+				}
+
+				saveDevice()
+			},
+			w,
+		)
+	}
+
+	deviceEditorForm := &widget.Form{
+		Items: []*widget.FormItem{
+			{Text: "Name", Widget: nameEntry, HintText: constants.HelpTextSelectedDeviceName},
+			{Text: "Config", Widget: configEntry, HintText: ""},
+			{Text: "Description", Widget: descriptionEntry, HintText: ""},
+			{Text: "Extra", Widget: extraEntry, HintText: ""},
+			{Text: "IP", Widget: ipEntry, HintText: ""},
+			{Text: "AllowedIPs", Widget: allowedIPsEntry, HintText: ""},
+			{Text: "PersistentKeepAlive", Widget: persistentKeepAliveEntry, HintText: ""},
+			{Text: "MTU", Widget: mtuEntry, HintText: ""},
+			{Text: "Endpoint", Widget: endpointEntry, HintText: ""},
+			{Text: "EndpointPort", Widget: endpointPortEntry, HintText: ""},
+			{Text: "DNS", Widget: dnsEntry, HintText: ""},
+			{Text: "PrivateKey", Widget: privateKeyEntry, HintText: ""},
+			{Text: "PublicKey", Widget: publicKeyEntry, HintText: ""},
+			{Text: "PreSharedKey", Widget: preSharedKeyEntry, HintText: ""},
+		},
+		SubmitText: "Save",
+		OnSubmit:   saveForm,
+	}
+
+	listUpdateFn := func(i widget.ListItemID, o fyne.CanvasObject) {
+		if devices[i].IsServer {
+			o.(*widget.Label).SetText(
+				fmt.Sprintf("[%v] %v [server]", devices[i].IP, devices[i].Name),
+			)
+			// o.(*widget.Label).SetIcon(theme.ComputerIcon())
+		} else {
+			o.(*widget.Label).SetText(
+				fmt.Sprintf("[%v] %v ", devices[i].IP, devices[i].Name),
+			)
+			// o.(*widget.Label).Importance = widget.LowImportance
+		}
+	}
+
+	list = widget.NewList(
+		func() int {
+			return len(devices)
+		},
+		func() fyne.CanvasObject {
+			b := widget.NewLabel("")
+			b.Alignment = fyne.TextAlignLeading
+			return b
+		},
+		listUpdateFn,
 	)
+
+	list.OnUnselected = func(id int) {
+		// log.Printf("unselected %v", id)
+	}
+	list.OnSelected = selectDeviceByID
+
+	selectedDeviceView := container.NewVScroll(
+		container.NewVBox(
+			deviceQR,
+			deviceEditorForm,
+		),
+	)
+
+	c := container.NewHSplit(
+		selectedDeviceView,
+		container.NewScroll(list),
+	)
+
+	// add a keyboard shortcut Ctrl+R to allow reloading of the device list
+	devicesCtrlRShortcut := func() {
+		if ActiveTab != constants.TabDevices {
+			return
+		}
+
+		err = refreshDevicesList(&devices, list)
+		if err != nil {
+			dialog.ShowError(
+				fmt.Errorf(
+					"Failed to refresh devices list: %v", err.Error(),
+				),
+				w,
+			)
+			return
+		}
+
+		dialog.ShowInformation("Refreshed", "Refreshed devices successfully.", w)
+	}
+	CtrlRShortcuts[constants.TabDevices] = &devicesCtrlRShortcut
+
+	// add a keyboard shortcut Ctrl+S to allow saving of the device list
+	devicesCtrlSShortcut := func() {
+		if ActiveTab != constants.TabDevices {
+			return
+		}
+
+		if SelectedDevice.ID == 0 {
+			return
+		}
+
+		saveForm()
+	}
+	CtrlSShortcuts[constants.TabDevices] = &devicesCtrlSShortcut
 
 	return c, nil
 }

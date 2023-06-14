@@ -148,7 +148,7 @@ func validateServer(server models.WgConfig) error {
 	return nil
 }
 
-func generateConfig(w models.WgConfig, server models.WgConfig) (string, error) {
+func GenerateConfig(w models.WgConfig, server models.WgConfig) (string, error) {
 	persistentKeepAlive := ""
 	if w.PersistentKeepAlive > 0 {
 		persistentKeepAlive = "\nPersistentKeepAlive = 25"
@@ -462,7 +462,7 @@ func Generate(
 		}
 
 		// generate the peer config for this peer
-		peerConf, err := generateConfig(w, server)
+		peerConf, err := GenerateConfig(w, server)
 		if err != nil {
 			return fmt.Errorf(
 				"error generating config for client %v: %v\n",

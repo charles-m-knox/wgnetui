@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"wgnetui/constants"
@@ -104,8 +103,8 @@ func main() {
 	ui.AddQuitShortcut(&w, &a)
 
 	tabs := container.NewAppTabs(
-		container.NewTabItemWithIcon("About", theme.FileIcon(), aboutView),
-		container.NewTabItemWithIcon("Generator", theme.FileIcon(), genformView),
+		container.NewTabItemWithIcon(constants.TabAbout, theme.FileIcon(), aboutView),
+		container.NewTabItemWithIcon(constants.TabGenerator, theme.FileIcon(), genformView),
 		container.NewTabItemWithIcon(constants.TabDevices, theme.DocumentIcon(), devicesView),
 		// container.NewTabItemWithIcon("Config Viewer", theme.InfoIcon(), confViewerView),
 		// container.NewTabItemWithIcon("Keys", theme.InfoIcon(), keysView),
@@ -113,19 +112,20 @@ func main() {
 	)
 
 	tabs.OnSelected = func(tab *container.TabItem) {
+		ui.ActiveTab = tab.Text
 		switch tab.Text {
 		case constants.TabDevices:
 			// refresh the devices view when switching tabs, if desired
-			devicesView, err := ui.GetDevicesView(w)
-			if err != nil {
-				dialog.ShowError(
-					fmt.Errorf(
-						"Failed to refresh devices view: %v",
-						err.Error(),
-					),
-					w,
-				)
-			}
+			// devicesView, err := ui.GetDevicesView(w)
+			// if err != nil {
+			// 	dialog.ShowError(
+			// 		fmt.Errorf(
+			// 			"Failed to refresh devices view: %v",
+			// 			err.Error(),
+			// 		),
+			// 		w,
+			// 	)
+			// }
 			tab.Content = devicesView
 			break
 		default:
@@ -140,6 +140,8 @@ func main() {
 	// ui.AddSwitchTab5Shortcut(&w, tabs)
 	ui.AddNextTabShortcut(&w, tabs)
 	ui.AddPrevTabShortcut(&w, tabs)
+	ui.AddCtrlSShortcut(&w)
+	ui.AddCtrlRShortcut(&w)
 
 	tabs.SetTabLocation(container.TabLocationTop)
 

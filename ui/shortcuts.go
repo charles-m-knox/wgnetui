@@ -8,6 +8,16 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 )
 
+var (
+	CtrlRShortcuts map[string]*func()
+	CtrlSShortcuts map[string]*func()
+)
+
+func init() {
+	CtrlRShortcuts = make(map[string]*func())
+	CtrlSShortcuts = make(map[string]*func())
+}
+
 func AddQuitShortcut(w *fyne.Window, a *fyne.App) {
 	(*w).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
@@ -156,6 +166,48 @@ func AddPrevTabShortcut(w *fyne.Window, t *container.AppTabs) {
 			}
 
 			t.SelectIndex(newIndex)
+		},
+	)
+}
+
+// AddCtrlSShortcut allows different Ctrl+S behavior depending on which
+// tab you're currently on.
+func AddCtrlSShortcut(w *fyne.Window) {
+	(*w).Canvas().AddShortcut(
+		&desktop.CustomShortcut{
+			KeyName:  fyne.KeyS,
+			Modifier: fyne.KeyModifierControl,
+		},
+		func(shortcut fyne.Shortcut) {
+			for _, fn := range CtrlSShortcuts {
+				if fn == nil {
+					log.Println("ctrl+S shortcut func is nil")
+					return
+				}
+
+				(*fn)()
+			}
+		},
+	)
+}
+
+// AddCtrlRShortcut allows different Ctrl+S behavior depending on which
+// tab you're currently on.
+func AddCtrlRShortcut(w *fyne.Window) {
+	(*w).Canvas().AddShortcut(
+		&desktop.CustomShortcut{
+			KeyName:  fyne.KeyR,
+			Modifier: fyne.KeyModifierControl,
+		},
+		func(shortcut fyne.Shortcut) {
+			for _, fn := range CtrlRShortcuts {
+				if fn == nil {
+					log.Println("ctrl+R shortcut func is nil")
+					return
+				}
+
+				(*fn)()
+			}
 		},
 	)
 }

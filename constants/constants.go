@@ -23,5 +23,7 @@ const (
 	DefaultEndpointPort        = uint16(51820)
 	DefaultMTU                 = uint16(1280)
 
-	TabDevices = "Devices"
+	TabAbout     = "About"
+	TabGenerator = "Generator"
+	TabDevices   = "Devices"
 )

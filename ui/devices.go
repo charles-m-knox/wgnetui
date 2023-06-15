@@ -179,6 +179,36 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		publicKeyEntry.SetText(SelectedDevice.PublicKey)
 		preSharedKeyEntry.SetText(SelectedDevice.PreSharedKey)
 
+		if SelectedDevice.IsServer {
+			// nameEntry.Disable()
+			// configEntry.Disable()
+			// descriptionEntry.Disable()
+			// extraEntry.Disable()
+			allowedIPsEntry.Disable()
+			persistentKeepAliveEntry.Disable()
+			// mtuEntry.Disable()
+			endpointEntry.Disable()
+			endpointPortEntry.Disable()
+			// dnsEntry.Disable()
+			// privateKeyEntry.Disable()
+			// publicKeyEntry.Disable()
+			preSharedKeyEntry.Disable()
+		} else {
+			// nameEntry.Enable()
+			// configEntry.Enable()
+			// descriptionEntry.Enable()
+			// extraEntry.Enable()
+			allowedIPsEntry.Enable()
+			persistentKeepAliveEntry.Enable()
+			// mtuEntry.Enable()
+			endpointEntry.Enable()
+			endpointPortEntry.Enable()
+			// dnsEntry.Enable()
+			// privateKeyEntry.Enable()
+			// publicKeyEntry.Enable()
+			preSharedKeyEntry.Enable()
+		}
+
 		qrc, err := helpers.GetQR(SelectedDevice.Config)
 		if err != nil {
 			err = fmt.Errorf("Failed to get QR code: %v", err.Error())

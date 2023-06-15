@@ -42,7 +42,7 @@ func applySoftRules(conf models.GenerationForm, w *models.WgConfig) error {
 		w.AllowedIPs = constants.DefaultAllowedIPs
 	}
 
-	if w.DNS == "" {
+	if w.DNS == "" && !w.IsServer { // don't set the dns for the server
 		w.DNS = conf.DNS
 	}
 
@@ -114,7 +114,7 @@ func applyForcedRules(conf models.GenerationForm, w *models.WgConfig) error {
 	if conf.ForceEndpointPort {
 		w.EndpointPort = conf.EndpointPort
 	}
-	if conf.ForceDNS {
+	if conf.ForceDNS && !w.IsServer { // don't set the DNS for the server
 		w.DNS = conf.DNS
 	}
 	if conf.ForceName {
@@ -195,11 +195,15 @@ func generateServerConfig(
 	if server.Extra != "" {
 		extra = fmt.Sprintf("\n%v", server.Extra)
 	}
+	dns := ""
+	if server.DNS != "" {
+		dns = fmt.Sprintf("\n%v", server.DNS)
+	}
+
 	config := fmt.Sprintf(`[Interface]%v
 PrivateKey = %s
 Address = %s/%d
-ListenPort = %v
-# DNS = %s
+ListenPort = %v%v
 MTU = %v
 PostUp = iptables -A FORWARD -i %%i -j ACCEPT; iptables -A FORWARD -o %%i -j ACCEPT; iptables -t nat -A POSTROUTING -o %v -j MASQUERADE
 PostDown = iptables -D FORWARD -i %%i -j ACCEPT; iptables -D FORWARD -o %%i -j ACCEPT; iptables -t nat -D POSTROUTING -o %v -j MASQUERADE
@@ -210,7 +214,7 @@ PostDown = iptables -D FORWARD -i %%i -j ACCEPT; iptables -D FORWARD -o %%i -j A
 		server.IP,
 		maskSize,
 		conf.EndpointPort,
-		conf.DNS,
+		dns,
 		conf.MTU,
 		conf.ServerInterface,
 		conf.ServerInterface,
@@ -341,6 +345,15 @@ func Generate(
 		w.ID = i
 		w.IP = ip.String()
 
+		// detect if this is the server's IP address
+		if ip.Equal(serverIP) {
+			// found the server ip, set IsServer to true
+			w.IsServer = true
+		} else {
+			// set everything else to false for completeness
+			w.IsServer = false
+		}
+
 		err = applySoftRules(conf, &w)
 		if err != nil {
 			return err
@@ -352,15 +365,6 @@ func Generate(
 		err = applyKeyRules(conf, &w)
 		if err != nil {
 			return err
-		}
-
-		// detect if this is the server's IP address
-		if ip.Equal(serverIP) {
-			// found the server ip, set IsServer to true
-			w.IsServer = true
-		} else {
-			// set everything else to false for completeness
-			w.IsServer = false
 		}
 
 		// save the newly updated wg config (peer) to the database

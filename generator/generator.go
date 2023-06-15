@@ -197,7 +197,7 @@ func generateServerConfig(
 	}
 	dns := ""
 	if server.DNS != "" {
-		dns = fmt.Sprintf("\n%v", server.DNS)
+		dns = fmt.Sprintf("\nDNS = %v", server.DNS)
 	}
 
 	config := fmt.Sprintf(`[Interface]%v

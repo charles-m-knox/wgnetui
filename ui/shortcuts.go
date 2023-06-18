@@ -4,176 +4,165 @@ import (
 	"log"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 )
 
-var (
-	CtrlRShortcuts map[string]*func()
-	CtrlSShortcuts map[string]*func()
-)
-
-func init() {
-	CtrlRShortcuts = make(map[string]*func())
-	CtrlSShortcuts = make(map[string]*func())
-}
-
-func AddQuitShortcut(w *fyne.Window, a *fyne.App) {
-	(*w).Canvas().AddShortcut(
+func AddQuitShortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.KeyQ,
 			Modifier: fyne.KeyModifierControl,
 		},
 		func(shortcut fyne.Shortcut) {
 			log.Println("quitting")
-			(*a).Quit()
+			(*A).Quit()
 		},
 	)
 }
 
-func AddSwitchTab1Shortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddSwitchTab1Shortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.Key1,
 			Modifier: fyne.KeyModifierAlt,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			t.SelectIndex(0)
+			Tabs.SelectIndex(0)
 		},
 	)
 }
 
-func AddSwitchTab2Shortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddSwitchTab2Shortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.Key2,
 			Modifier: fyne.KeyModifierAlt,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			t.SelectIndex(1)
+			Tabs.SelectIndex(1)
 		},
 	)
 }
 
-func AddSwitchTab3Shortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddSwitchTab3Shortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.Key3,
 			Modifier: fyne.KeyModifierAlt,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			t.SelectIndex(2)
+			Tabs.SelectIndex(2)
 		},
 	)
 }
 
-func AddSwitchTab4Shortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddSwitchTab4Shortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.Key4,
 			Modifier: fyne.KeyModifierAlt,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			t.SelectIndex(3)
+			Tabs.SelectIndex(3)
 		},
 	)
 }
 
-func AddSwitchTab5Shortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddSwitchTab5Shortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.Key5,
 			Modifier: fyne.KeyModifierAlt,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			t.SelectIndex(4)
+			Tabs.SelectIndex(4)
 		},
 	)
 }
 
-func AddSwitchTab6Shortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddSwitchTab6Shortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.Key6,
 			Modifier: fyne.KeyModifierAlt,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			t.SelectIndex(5)
+			Tabs.SelectIndex(5)
 		},
 	)
 }
 
-func AddNextTabShortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddNextTabShortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.KeyTab,
 			Modifier: fyne.KeyModifierControl,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			tabCount := len(t.Items)
-			newIndex := t.SelectedIndex() + 1
+			tabCount := len(Tabs.Items)
+			newIndex := Tabs.SelectedIndex() + 1
 			if newIndex > tabCount-1 {
 				newIndex = 0
 			}
 
-			t.SelectIndex(newIndex)
+			Tabs.SelectIndex(newIndex)
 		},
 	)
 }
 
-func AddPrevTabShortcut(w *fyne.Window, t *container.AppTabs) {
-	(*w).Canvas().AddShortcut(
+func AddPrevTabShortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.KeyTab,
 			Modifier: fyne.KeyModifierControl | fyne.KeyModifierShift,
 		},
 		func(shortcut fyne.Shortcut) {
-			if t == nil {
+			if Tabs == nil {
 				return
 			}
 
-			newIndex := t.SelectedIndex() - 1
+			newIndex := Tabs.SelectedIndex() - 1
 			if newIndex < 0 {
-				newIndex = len(t.Items) - 1
+				newIndex = len(Tabs.Items) - 1
 			}
 
-			t.SelectIndex(newIndex)
+			Tabs.SelectIndex(newIndex)
 		},
 	)
 }
 
 // AddCtrlSShortcut allows different Ctrl+S behavior depending on which
 // tab you're currently on.
-func AddCtrlSShortcut(w *fyne.Window) {
-	(*w).Canvas().AddShortcut(
+func AddCtrlSShortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.KeyS,
 			Modifier: fyne.KeyModifierControl,
@@ -191,10 +180,10 @@ func AddCtrlSShortcut(w *fyne.Window) {
 	)
 }
 
-// AddCtrlRShortcut allows different Ctrl+S behavior depending on which
+// AddCtrlRShortcut allows different Ctrl+R behavior depending on which
 // tab you're currently on.
-func AddCtrlRShortcut(w *fyne.Window) {
-	(*w).Canvas().AddShortcut(
+func AddCtrlRShortcut() {
+	(*W).Canvas().AddShortcut(
 		&desktop.CustomShortcut{
 			KeyName:  fyne.KeyR,
 			Modifier: fyne.KeyModifierControl,

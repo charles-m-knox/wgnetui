@@ -3,11 +3,12 @@ package constants
 const (
 	PlaceholderMarkdown = "# Placeholder markdown\n\nThis is some placeholder text."
 
-	ErrorMessageNoDB           = "The config database is not accessible. Please restart this application. If this continues, please verify that the database file exists and is readable."
-	ErrorMessageNoDevice       = "The selected device could not be found in the database."
-	ErrorMessageFailGenKeyPair = "Failed to generate a keypair."
+	ErrorMessageNoDB                = "The config database is not accessible. Please restart this application. If this continues, please verify that the database file exists and is readable."
+	ErrorMessageNoDevice            = "The selected device could not be found in the database."
+	ErrorMessageFailGenKeyPair      = "Failed to generate a keypair."
+	ErrorMessageNoProgressBarDialog = "Unable to set up the progress bar dialog."
 
-	HelpTextSelectedDeviceName = "Name of this device. Can by any string."
+	HelpTextSelectedDeviceName = "Name of this device. Can be any string."
 
 	HelpTextCIDR           = "IPv4 CIDR range for the mesh network, such as 192.168.1.0/24"           // This application will generate one peer config for each IP address within this range."
 	HelpTextMTU            = "The Maximum Transmission Unit for every connection (suggest 1280-1500)" // Consider starting with 1280 and incrementing until you see failures."
@@ -26,4 +27,7 @@ const (
 	TabAbout     = "About"
 	TabGenerator = "Generator"
 	TabDevices   = "Devices"
+
+	DefaultWindowTitle = "Wireguard Network UI"
+	DefaultFileName    = "wgnetui.db"
 )

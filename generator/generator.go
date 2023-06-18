@@ -232,18 +232,9 @@ func Generate(
 	serverIP net.IP,
 	firstIP net.IP,
 	network *net.IPNet,
-	showGeneratorProgressDialog *func(),
-	hideGeneratorProgressDialog *func(),
-	setGeneratorProgressLabel *func(label string),
-	setGeneratorProgressValue *func(v float64),
+	setProgressLabel *func(l string),
+	setProgressValue *func(v float64),
 ) (err error) {
-	if showGeneratorProgressDialog == nil ||
-		hideGeneratorProgressDialog == nil ||
-		setGeneratorProgressLabel == nil ||
-		setGeneratorProgressValue == nil {
-		return fmt.Errorf("generate: progress bar dialog nil pointers")
-	}
-
 	// First, generate keypairs for every possible IP address within the range,
 	// and while doing this, take note of which of them corresponds to the
 	// IP address within the range that equals the server's IP address.
@@ -253,14 +244,16 @@ func Generate(
 
 	// query the db for an existing wgconfig
 	if database.DB == nil {
-		return fmt.Errorf(
-			constants.ErrorMessageNoDB,
-		)
+		return fmt.Errorf(constants.ErrorMessageNoDB)
+	}
+
+	if setProgressLabel == nil || setProgressValue == nil {
+		return fmt.Errorf(constants.ErrorMessageNoProgressBarDialog)
 	}
 
 	// reset the database if requested
 	if conf.ResetAll {
-		(*setGeneratorProgressLabel)("Resetting database...")
+		(*setProgressLabel)("Resetting database...")
 		resetResult := database.DB.Exec("DELETE FROM wg_configs WHERE id > 0")
 		if resetResult.Error != nil {
 			return fmt.Errorf(
@@ -273,8 +266,8 @@ func Generate(
 	// edge case: All values in the database above the generated IP range
 	// need to be cleared out - in particular, they need to have their
 	// IsServer flag cleared. Start by doing this first.
-	(*setGeneratorProgressLabel)("Old server flag flip...")
-	(*setGeneratorProgressValue)(5)
+	(*setProgressLabel)("Old server flag flip...")
+	(*setProgressValue)(5)
 	resetResult := database.DB.Model(&models.WgConfig{}).Where(
 		"is_server = ?", true,
 	).Update(
@@ -309,7 +302,7 @@ func Generate(
 		// performance slowdowns start to occur when updating the progress
 		// dialog for large numbers
 		if (!generatingMany) || (generatingMany && i%50 == 0) {
-			(*setGeneratorProgressLabel)(
+			(*setProgressLabel)(
 				fmt.Sprintf(
 					"[%v/%v]: Generating keys and configuring peers: Step 1/2",
 					i,
@@ -324,7 +317,7 @@ func Generate(
 			// p1 := float64(i) / float64(wgs)
 			// p2 := (float64(i) / float64(wgs)) * (90 / 2.0)
 			// log.Printf("i=%v, wgs=%v, %v %v", float64(i), float64(wgs), p1, p2)
-			(*setGeneratorProgressValue)(
+			(*setProgressValue)(
 				5 + (float64(i)/float64(wgs))*(90/2.0),
 			)
 		}
@@ -420,7 +413,7 @@ func Generate(
 		// performance slowdowns start to occur when updating the progress
 		// dialog for large numbers
 		if (!generatingMany) || (generatingMany && i%50 == 0) {
-			(*setGeneratorProgressLabel)(
+			(*setProgressLabel)(
 				fmt.Sprintf(
 					"[%v/%v]: Generating peer configs: Step 2/2",
 					i,
@@ -432,7 +425,7 @@ func Generate(
 			// We want to get an additional 90% done, leaving
 			// us with 5% remaining. 90% / 2 full iterations of the IP range = 45%,
 			// meaning that (1 / wgs) / 45%.
-			(*setGeneratorProgressValue)(
+			(*setProgressValue)(
 				5 + 45 + float64(i)/float64(wgs)*(90/2.0),
 			)
 		}
@@ -499,18 +492,18 @@ func Generate(
 		i++
 	}
 
-	(*setGeneratorProgressLabel)(
+	(*setProgressLabel)(
 		fmt.Sprintf(
 			"[%v/%v]: Generation step 2/2 complete",
 			i,
 			wgs,
 		),
 	)
-	(*setGeneratorProgressValue)(95)
+	(*setProgressValue)(95)
 
 	// 3. Finally, update the server config.
-	(*setGeneratorProgressLabel)("Saving final server config")
-	(*setGeneratorProgressValue)(99)
+	(*setProgressLabel)("Saving final server config")
+	(*setProgressValue)(99)
 	server.Config = generateServerConfig(server, conf, serverPeers, network)
 	saved := database.DB.Save(&server)
 	if saved.Error != nil {
@@ -521,8 +514,8 @@ func Generate(
 		)
 	}
 
-	(*setGeneratorProgressLabel)("Done")
-	(*setGeneratorProgressValue)(100)
+	(*setProgressLabel)("Done")
+	(*setProgressValue)(100)
 
 	return nil
 }

@@ -9,7 +9,11 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
+var (
+	DB             *gorm.DB
+	OpenedFileName string
+	OpenedFilePath string
+)
 
 func Connect(file string) *gorm.DB {
 	var err error

@@ -18,17 +18,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-func GetWgGenForm(
-	w fyne.Window,
-	showGeneratorProgressDialog *func(),
-	hideGeneratorProgressDialog *func(),
-	setGeneratorProgressLabel *func(label string),
-	setGeneratorProgressValue *func(v float64),
-) *fyne.Container {
+func GetWgGenForm() *fyne.Container {
 	gf := models.GenerationForm{}
 	gotPreconfigured := false
 	if database.DB != nil {
-		log.Printf("database.DB connection ready")
 		result := database.DB.Order("created_at desc").Limit(1).First(&gf)
 		if result.Error != nil {
 			dialog.ShowError(
@@ -36,12 +29,13 @@ func GetWgGenForm(
 					"Failed to retrieve previously stored configuration: %v",
 					result.Error.Error(),
 				),
-				w,
+				*W,
 			)
 		}
 		gotPreconfigured = true
 	}
 
+	log.Println("opening new form", database.OpenedFilePath)
 	cidr := widget.NewEntry()
 	cidr.SetPlaceHolder("192.168.100.0/24")
 	mtu := widget.NewEntry()
@@ -117,6 +111,8 @@ func GetWgGenForm(
 		forceExtra.SetChecked(gf.ForceExtra)
 	}
 
+	log.Println("new form:", gf)
+
 	// create the form
 	genForm := &widget.Form{
 		Items: []*widget.FormItem{
@@ -146,32 +142,34 @@ func GetWgGenForm(
 		},
 		SubmitText: "Update",
 		OnSubmit: func() {
-			if showGeneratorProgressDialog == nil ||
-				hideGeneratorProgressDialog == nil ||
-				setGeneratorProgressLabel == nil ||
-				setGeneratorProgressValue == nil {
+			if ProgressBarDialog == nil {
 				dialog.ShowError(
 					fmt.Errorf("Unable to show progress dialog."),
-					w,
+					*W,
 				)
 				return
 			}
 
-			(*setGeneratorProgressLabel)("Checking database...")
-			(*setGeneratorProgressValue)(0)
-			(*showGeneratorProgressDialog)()
-			defer (*hideGeneratorProgressDialog)()
+			ProgressBarDialog.Fresh(
+				"Checking database...",
+				"Hide",
+				"Generating...",
+			)
+
+			ProgressBarDialog.SetProgress(0)
+			ProgressBarDialog.Show()
+			defer ProgressBarDialog.Hide()
 
 			if database.DB == nil {
 				dialog.ShowError(
 					fmt.Errorf(constants.ErrorMessageNoDB),
-					w,
+					*W,
 				)
 				return
 			}
 
-			(*setGeneratorProgressLabel)("Validating inputs...")
-			(*setGeneratorProgressValue)(1)
+			ProgressBarDialog.SetLabel("Validating inputs...")
+			ProgressBarDialog.SetProgress(1)
 
 			g := models.GenerationForm{}
 
@@ -234,16 +232,16 @@ func GetWgGenForm(
 			}
 
 			if len(valstr) > 0 {
-				(*hideGeneratorProgressDialog)()
+				ProgressBarDialog.Hide()
 				dialog.ShowError(
 					fmt.Errorf("One or more values were entered incorrectly.\n\n%v", strings.Join(valstr, "\n")),
-					w,
+					*W,
 				)
 				return
 			}
 
-			(*setGeneratorProgressLabel)("Preparing inputs...")
-			(*setGeneratorProgressValue)(2)
+			ProgressBarDialog.SetLabel("Preparing inputs...")
+			ProgressBarDialog.SetProgress(2)
 
 			g.CIDR = cidr.Text // warning: rendering parsedCIDR as a string results in the /24 suffix dropping
 			g.DNS = fmt.Sprintf("%v", parsedDNS)
@@ -270,28 +268,38 @@ func GetWgGenForm(
 			g.ForceDescription = forceDescription.Checked
 			g.ForceExtra = forceExtra.Checked
 
-			(*setGeneratorProgressLabel)("Saving config to DB...")
-			(*setGeneratorProgressValue)(3)
+			ProgressBarDialog.SetLabel("Validating inputs...")
+			ProgressBarDialog.SetProgress(3)
 
 			result := database.DB.Create(&g)
 			if result.Error != nil {
 				dialog.ShowError(
 					fmt.Errorf("Failed to store this configuration: %v", result.Error.Error()),
-					w,
+					*W,
 				)
 				return
 			}
 
-			(*setGeneratorProgressLabel)("Starting generation...")
-			(*setGeneratorProgressValue)(4)
+			ProgressBarDialog.SetLabel("Starting generation...")
+			ProgressBarDialog.SetProgress(4)
 
+			// define these wrapper functions to work around Go's quirkiness
+			// of being unable to pass &ProgressBarDialog.SetLabel / SetProgress
+			// directly to the function generator.Generate()
+			sl := func(l string) {
+				ProgressBarDialog.SetLabel(l)
+			}
+			sp := func(v float64) {
+				ProgressBarDialog.SetProgress(v)
+			}
 			// now generate all keys / etc based on the config
 			err = generator.Generate(
-				g, parsedServer, firstIP, cidrNet,
-				showGeneratorProgressDialog,
-				hideGeneratorProgressDialog,
-				setGeneratorProgressLabel,
-				setGeneratorProgressValue,
+				g,
+				parsedServer,
+				firstIP,
+				cidrNet,
+				&sl,
+				&sp,
 			)
 			if err != nil {
 				dialog.ShowError(
@@ -299,7 +307,7 @@ func GetWgGenForm(
 						"Failed to generate configuration: %v",
 						err.Error(),
 					),
-					w,
+					*W,
 				)
 				return
 			}
@@ -307,12 +315,12 @@ func GetWgGenForm(
 			dialog.ShowInformation(
 				"Generated",
 				"The configuration was saved successfully.",
-				w,
+				*W,
 			)
 		},
 	}
 
-	return container.NewVBox(
+	return container.NewMax(container.NewScroll(container.NewVBox(
 		genForm,
-	)
+	)))
 }

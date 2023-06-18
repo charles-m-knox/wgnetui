@@ -25,3 +25,21 @@ func GetServer() (server models.WgConfig, err error) {
 
 	return server, nil
 }
+
+// GetLatestGenForm retrieves the most recently created generation form configuration
+// from the currently opened SQLite database.
+func GetLatestGenForm() (gf models.GenerationForm, err error) {
+	if database.DB == nil {
+		return gf, fmt.Errorf(constants.ErrorMessageNoDB)
+	}
+
+	result := database.DB.Order("created_at desc").Limit(1).First(&gf)
+	if result.Error != nil {
+		return gf, fmt.Errorf(
+			"Failed to retrieve previously stored configuration: %v",
+			result.Error.Error(),
+		)
+	}
+
+	return gf, nil
+}

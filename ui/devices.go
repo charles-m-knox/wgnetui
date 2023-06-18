@@ -91,7 +91,7 @@ func refreshDevicesList(devices *[]models.WgConfig, list *widget.List) error {
 
 // GetDevicesView returns a Fyne container that holds a view for assigning
 // devices and names, as a list.
-func GetDevicesView(w fyne.Window) (*container.Split, error) {
+func GetDevicesView() (*container.Split, error) {
 	devices := []models.WgConfig{}
 
 	err := refreshDevices(&devices)
@@ -133,7 +133,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 	initialQR, err := helpers.GetQR("Please choose a device first.")
 	if err != nil {
 		err = fmt.Errorf("Failed to initialize QR render: %v", err.Error())
-		dialog.ShowError(err, w)
+		dialog.ShowError(err, *W)
 		return nil, err
 	}
 
@@ -147,7 +147,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		if database.DB == nil {
 			dialog.ShowError(
 				fmt.Errorf(constants.ErrorMessageNoDB),
-				w,
+				*W,
 			)
 			return
 		}
@@ -156,7 +156,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		if result.Error != nil {
 			dialog.ShowError(
 				fmt.Errorf(constants.ErrorMessageNoDevice),
-				w,
+				*W,
 			)
 			return
 		}
@@ -212,7 +212,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		qrc, err := helpers.GetQR(SelectedDevice.Config)
 		if err != nil {
 			err = fmt.Errorf("Failed to get QR code: %v", err.Error())
-			dialog.ShowError(err, w)
+			dialog.ShowError(err, *W)
 		}
 		deviceQR.Image = qrc
 		deviceQR.FillMode = canvas.ImageFillContain
@@ -223,7 +223,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		if database.DB == nil {
 			dialog.ShowError(
 				fmt.Errorf(constants.ErrorMessageNoDB),
-				w,
+				*W,
 			)
 			return
 		}
@@ -232,7 +232,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		if err != nil {
 			dialog.ShowError(
 				fmt.Errorf("The provided PersistentKeepAlive value was not valid: %v", err.Error()),
-				w,
+				*W,
 			)
 			return
 		}
@@ -241,7 +241,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		if err != nil {
 			dialog.ShowError(
 				fmt.Errorf("The provided EndpointPort value was not valid: %v", err.Error()),
-				w,
+				*W,
 			)
 			return
 		}
@@ -250,7 +250,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		if err != nil {
 			dialog.ShowError(
 				fmt.Errorf("The provided MTU value was not valid: %v", err.Error()),
-				w,
+				*W,
 			)
 			return
 		}
@@ -259,7 +259,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 		if err != nil {
 			dialog.ShowError(
 				fmt.Errorf("Failed to retrieve server when saving device: %v", err.Error()),
-				w,
+				*W,
 			)
 			return
 		}
@@ -286,7 +286,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 			if result.Error != nil {
 				dialog.ShowError(
 					fmt.Errorf("Failed to save this device: %v", result.Error.Error()),
-					w,
+					*W,
 				)
 				return
 			}
@@ -298,7 +298,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 						fmt.Errorf(
 							"Failed to refresh devices list: %v", err.Error(),
 						),
-						w,
+						*W,
 					)
 					return
 				}
@@ -308,7 +308,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 			dialog.ShowInformation(
 				"Saved Device",
 				fmt.Sprintf("Device %v was saved successfully.", SelectedDevice.IP),
-				w,
+				*W,
 			)
 		}
 
@@ -333,7 +333,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 					if err != nil {
 						dialog.ShowError(
 							fmt.Errorf("Failed to generate config for this device: %v", err.Error()),
-							w,
+							*W,
 						)
 						return
 					}
@@ -343,7 +343,7 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 
 				saveDevice()
 			},
-			w,
+			*W,
 		)
 	}
 
@@ -373,12 +373,10 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 			o.(*widget.Label).SetText(
 				fmt.Sprintf("[%v] %v [server]", devices[i].IP, devices[i].Name),
 			)
-			// o.(*widget.Label).SetIcon(theme.ComputerIcon())
 		} else {
 			o.(*widget.Label).SetText(
 				fmt.Sprintf("[%v] %v ", devices[i].IP, devices[i].Name),
 			)
-			// o.(*widget.Label).Importance = widget.LowImportance
 		}
 	}
 
@@ -413,9 +411,9 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 
 	// add a keyboard shortcut Ctrl+R to allow reloading of the device list
 	devicesCtrlRShortcut := func() {
-		if ActiveTab != constants.TabDevices {
-			return
-		}
+		// if ActiveTab != constants.TabDevices {
+		// 	return
+		// }
 
 		err = refreshDevicesList(&devices, list)
 		if err != nil {
@@ -423,12 +421,16 @@ func GetDevicesView(w fyne.Window) (*container.Split, error) {
 				fmt.Errorf(
 					"Failed to refresh devices list: %v", err.Error(),
 				),
-				w,
+				*W,
 			)
 			return
 		}
 
-		dialog.ShowInformation("Refreshed", "Refreshed devices successfully.", w)
+		// if LoadDevicesView != nil {
+		// 	(*LoadDevicesView)()
+		// 	dialog.ShowInformation("Refreshed", "Refreshed devices successfully.", *W)
+		// }
+		dialog.ShowInformation("Refreshed", "Refreshed devices successfully.", *W)
 	}
 	CtrlRShortcuts[constants.TabDevices] = &devicesCtrlRShortcut
 

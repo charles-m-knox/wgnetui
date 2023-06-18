@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -107,7 +108,7 @@ func GetDevicesView() (*container.Split, error) {
 	extraEntry.SetPlaceHolder("# extra wireguard [Interface] section config lines can go here\nPostUp = foo")
 	configEntry := widget.NewMultiLineEntry()
 	configEntry.SetPlaceHolder("[Interface]\n# ...")
-	configEntry.SetMinRowsVisible(13)
+	configEntry.SetMinRowsVisible(10)
 	ipEntry := widget.NewEntry()
 	ipEntry.SetPlaceHolder("192.168.100.1")
 	ipEntry.Disable()
@@ -140,6 +141,42 @@ func GetDevicesView() (*container.Split, error) {
 	deviceQR := canvas.NewImageFromImage(initialQR)
 	deviceQR.FillMode = canvas.ImageFillOriginal
 
+	exportConfigToFile := widget.NewButtonWithIcon(
+		constants.ExportConfigToFileButtonLabel,
+		theme.DocumentSaveIcon(),
+		func() {
+			t := "peer"
+			if SelectedDevice.IsServer {
+				t = "server"
+			}
+			SaveToFileDialog(
+				SelectedDevice.Config,
+				fmt.Sprintf(
+					"wgnetui_%v_%v.conf",
+					SelectedDevice.IP,
+					t,
+				),
+				[]string{".conf"},
+			)
+		},
+	)
+	exportConfigToFile.Importance = widget.HighImportance
+	showQRCodeButton := widget.NewButtonWithIcon(
+		constants.ToggleQRCodeButtonLabel,
+		theme.VisibilityIcon(),
+		func() {
+			if deviceQR == nil {
+				return
+			}
+
+			if deviceQR.Visible() {
+				deviceQR.Hide()
+			} else {
+				deviceQR.Show()
+			}
+		},
+	)
+
 	var list *widget.List
 
 	selectDeviceByID := func(id int) {
@@ -165,7 +202,6 @@ func GetDevicesView() (*container.Split, error) {
 
 		// update the form to show the selected device
 		nameEntry.SetText(SelectedDevice.Name)
-		configEntry.SetText(SelectedDevice.Config)
 		descriptionEntry.SetText(SelectedDevice.Description)
 		extraEntry.SetText(SelectedDevice.Extra)
 		ipEntry.SetText(SelectedDevice.IP)
@@ -180,9 +216,10 @@ func GetDevicesView() (*container.Split, error) {
 		preSharedKeyEntry.SetText(SelectedDevice.PreSharedKey)
 
 		if SelectedDevice.IsServer {
-			// nameEntry.Disable()
-			// configEntry.Disable()
 			// descriptionEntry.Disable()
+			// nameEntry.Disable()
+			configEntry.SetText(constants.MessageServerConfigNotShown)
+			configEntry.Disable()
 			// extraEntry.Disable()
 			allowedIPsEntry.Disable()
 			persistentKeepAliveEntry.Disable()
@@ -193,9 +230,15 @@ func GetDevicesView() (*container.Split, error) {
 			// privateKeyEntry.Disable()
 			// publicKeyEntry.Disable()
 			preSharedKeyEntry.Disable()
+
+			// hide the qr for servers and replace it with a button to
+			// export to file
+			deviceQR.Hide()
+			showQRCodeButton.Disable()
 		} else {
 			// nameEntry.Enable()
-			// configEntry.Enable()
+			configEntry.SetText(SelectedDevice.Config)
+			configEntry.Enable()
 			// descriptionEntry.Enable()
 			// extraEntry.Enable()
 			allowedIPsEntry.Enable()
@@ -207,16 +250,19 @@ func GetDevicesView() (*container.Split, error) {
 			// privateKeyEntry.Enable()
 			// publicKeyEntry.Enable()
 			preSharedKeyEntry.Enable()
-		}
+			showQRCodeButton.Enable()
 
-		qrc, err := helpers.GetQR(SelectedDevice.Config)
-		if err != nil {
-			err = fmt.Errorf("Failed to get QR code: %v", err.Error())
-			dialog.ShowError(err, *W)
+			// update the qr only for non-servers
+			qrc, err := helpers.GetQR(SelectedDevice.Config)
+			if err != nil {
+				err = fmt.Errorf("Failed to get QR code: %v", err.Error())
+				dialog.ShowError(err, *W)
+			}
+			deviceQR.Image = qrc
+			deviceQR.FillMode = canvas.ImageFillContain
+			deviceQR.Hide()
+			deviceQR.Refresh()
 		}
-		deviceQR.Image = qrc
-		deviceQR.FillMode = canvas.ImageFillContain
-		deviceQR.Refresh()
 	}
 
 	saveForm := func() {
@@ -399,7 +445,9 @@ func GetDevicesView() (*container.Split, error) {
 
 	selectedDeviceView := container.NewVScroll(
 		container.NewVBox(
+			showQRCodeButton,
 			deviceQR,
+			exportConfigToFile,
 			deviceEditorForm,
 		),
 	)

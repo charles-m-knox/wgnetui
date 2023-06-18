@@ -30,4 +30,9 @@ const (
 
 	DefaultWindowTitle = "Wireguard Network UI"
 	DefaultFileName    = "wgnetui.db"
+
+	ExportConfigToFileButtonLabel = "Export device config to file"
+	ToggleQRCodeButtonLabel       = "Toggle QR code"
+
+	MessageServerConfigNotShown = "Server configs are too large to show here. Click the button at the top to export it to a file."
 )

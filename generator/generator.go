@@ -190,7 +190,8 @@ AllowedIPs = %v%v
 func generateServerConfig(
 	server models.WgConfig,
 	conf models.GenerationForm,
-	serverPeers []string,
+	serverPeers string,
+	// serverPeers []string,
 	network *net.IPNet,
 ) string {
 	maskSize, _ := network.Mask.Size()
@@ -211,6 +212,7 @@ MTU = %v
 PostUp = iptables -A FORWARD -i %%i -j ACCEPT; iptables -A FORWARD -o %%i -j ACCEPT; iptables -t nat -A POSTROUTING -o %v -j MASQUERADE
 PostDown = iptables -D FORWARD -i %%i -j ACCEPT; iptables -D FORWARD -o %%i -j ACCEPT; iptables -t nat -D POSTROUTING -o %v -j MASQUERADE
 
+%v
 `,
 		extra,
 		server.PrivateKey,
@@ -221,11 +223,12 @@ PostDown = iptables -D FORWARD -i %%i -j ACCEPT; iptables -D FORWARD -o %%i -j A
 		conf.MTU,
 		conf.ServerInterface,
 		conf.ServerInterface,
+		serverPeers,
 	)
 
-	for _, serverPeer := range serverPeers {
-		config += serverPeer + "\n"
-	}
+	// for _, serverPeer := range serverPeers {
+	// 	config += serverPeer + "\n"
+	// }
 
 	return config
 }
@@ -279,7 +282,7 @@ func Generate(
 	// edge case: All values in the database above the generated IP range
 	// need to be cleared out - in particular, they need to have their
 	// IsServer flag cleared. Start by doing this first.
-	(*setProgressLabel)("Old server flag flip...")
+	(*setProgressLabel)("Identifying previously generated server config...")
 	(*setProgressValue)(5)
 	resetResult := database.DB.Model(&models.WgConfig{}).Where(
 		"is_server = ?", true,
@@ -335,10 +338,10 @@ func Generate(
 
 	log.Printf("total IP addresses: %v", ips)
 
-	var wg sync.WaitGroup
 	var progress int64 = 0
 	var server *models.WgConfig
-	serverPeers := []string{}
+	var serverPeers strings.Builder
+	// serverPeers := []string{}
 	mutex := &sync.Mutex{}
 
 	// prepDevice preps a single device, this is useful for processing
@@ -361,16 +364,7 @@ func Generate(
 		// left blank, the original value will be preserved where possible.
 		w.ID = i
 		w.IP = ip.S
-
-		// detect if this is the server's IP address
 		w.IsServer = ip.IsServerIP
-		// if ip.IP.Equal(serverIP) {
-		// 	// found the server ip, set IsServer to true
-		// 	w.IsServer = true
-		// } else {
-		// 	// set everything else to false for completeness
-		// 	w.IsServer = false
-		// }
 
 		err = applySoftRules(conf, &w)
 		if err != nil {
@@ -399,13 +393,14 @@ func Generate(
 			w.Config = peerConf
 
 			serverPeer := fmt.Sprintf(
-				"[Peer]\nPublicKey = %s\nAllowedIPs = %s/32\nPresharedKey = %s\n",
+				"[Peer]\nPublicKey = %s\nAllowedIPs = %s/32\nPresharedKey = %s\n\n",
 				w.PublicKey,
 				w.IP,
 				w.PreSharedKey,
 			)
 			mutex.Lock()
-			serverPeers = append(serverPeers, serverPeer)
+			serverPeers.WriteString(serverPeer)
+			// serverPeers = append(serverPeers, serverPeer)
 			mutex.Unlock()
 		}
 
@@ -430,55 +425,6 @@ func Generate(
 			return err
 		}
 
-		// w := models.WgConfig{}
-
-		// result := database.DB.First(&w, "id = ?", i)
-		// if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
-		// 	return fmt.Errorf(
-		// 		"failed to look up config %v: %v",
-		// 		i,
-		// 		result.Error.Error(),
-		// 	)
-		// }
-
-		// // update values. Note that in general, if a value in the form is
-		// // left blank, the original value will be preserved where possible.
-		// w.ID = i
-		// w.IP = ip.S
-
-		// // detect if this is the server's IP address
-		// w.IsServer = ip.IsServerIP
-		// // if ip.IP.Equal(serverIP) {
-		// // 	// found the server ip, set IsServer to true
-		// // 	w.IsServer = true
-		// // } else {
-		// // 	// set everything else to false for completeness
-		// // 	w.IsServer = false
-		// // }
-
-		// err = applySoftRules(conf, &w)
-		// if err != nil {
-		// 	return err
-		// }
-		// err = applyForcedRules(conf, &w)
-		// if err != nil {
-		// 	return err
-		// }
-		// err = applyKeyRules(conf, &w)
-		// if err != nil {
-		// 	return err
-		// }
-
-		// // save the newly updated wg config (peer) to the database
-		// saved := database.DB.Save(&w)
-		// if saved.Error != nil {
-		// 	return fmt.Errorf(
-		// 		"failed to save config %v: %v",
-		// 		i,
-		// 		saved.Error.Error(),
-		// 	)
-		// }
-
 		atomic.AddInt64(progress, 1)
 
 		msg := fmt.Sprintf(
@@ -486,10 +432,10 @@ func Generate(
 			atomic.LoadInt64(progress),
 			ips,
 		)
-		log.Printf(msg)
+		// log.Printf(msg)
 		(*setProgressLabel)(msg)
 		(*setProgressValue)(
-			5 + (float64(atomic.LoadInt64(progress))/float64(ips))*(90/2.0),
+			5 + (float64(atomic.LoadInt64(progress))/float64(ips))*(90),
 		)
 		return nil
 	}
@@ -527,142 +473,28 @@ func Generate(
 		return err
 	}
 
-	for j, ip := range allIPs {
-		if ip.IsServerIP {
-			continue
-		}
-		i := uint(j + 1)
-		wg.Add(1)
-		go prepFnWrapped(&wg, &progress, i, ip)
-
-		// // performance slowdowns start to occur when updating the progress
-		// // dialog for large numbers
-		// if (!generatingMany) || (generatingMany && i%50 == 0) {
-		// 	(*setProgressLabel)(
-		// 		fmt.Sprintf(
-		// 			"[%v/%v]: Generating keys and configuring peers: Step 1/2",
-		// 			i,
-		// 			ips,
-		// 		),
-		// 	)
-
-		// 	// At the start of the loop we are 5% done with the full 100%.
-		// 	// We want to get an additional 90% done, leaving
-		// 	// us with 5% remaining. 90% / 2 full iterations of the IP range = 45%,
-		// 	// meaning that (1 / ips) / 45%.
-		// 	// p1 := float64(i) / float64(ips)
-		// 	// p2 := (float64(i) / float64(ips)) * (90 / 2.0)
-		// 	// log.Printf("i=%v, ips=%v, %v %v", float64(i), float64(ips), p1, p2)
-		// 	(*setProgressValue)(
-		// 		5 + (float64(i)/float64(ips))*(90/2.0),
-		// 	)
-		// }
-	}
-
-	wg.Wait()
-
-	// 2. Now that the entire sequence of configs has been updated, we can
-	//    proceed to generate all peer configs. Iterate through the whole
-	//    list again (ignoring the server), generating configs for each peer.
-	//    Each peer needs to know the server's public key and IP address, so
-	//    start by finding the server:
-	// server := models.WgConfig{}
-	// serverResult := database.DB.First(&server, "is_server = ?", true)
-	// if serverResult.Error != nil && serverResult.Error != gorm.ErrRecordNotFound {
-	// 	return fmt.Errorf(
-	// 		"failed to look up server: %v",
-	// 		serverResult.Error.Error(),
-	// 	)
-	// }
-
-	// err = validateServer(server)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// proceed with the remainder of step 2:
-	// Generate all peer configs, now that we have the server IP.
-	// serverPeers := []string{}
 	// for j, ip := range allIPs {
-	// 	i := uint(j + 1)
-	// 	// performance slowdowns start to occur when updating the progress
-	// 	// dialog for large numbers
-	// 	if (!generatingMany) || (generatingMany && i%50 == 0) {
-	// 		(*setProgressLabel)(
-	// 			fmt.Sprintf(
-	// 				"[%v/%v]: Generating peer configs: Step 2/2",
-	// 				i,
-	// 				ips,
-	// 			),
-	// 		)
+	chunkSize := 250
+	for j := 0; j < ips; j += chunkSize {
+		end := j + chunkSize
+		// Check if end is out of bounds
+		if end > ips {
+			end = ips
+		}
 
-	// 		// At the start of the loop we are 5% done with the full 100%.
-	// 		// We want to get an additional 90% done, leaving
-	// 		// us with 5% remaining. 90% / 2 full iterations of the IP range = 45%,
-	// 		// meaning that (1 / ips) / 45%.
-	// 		(*setProgressValue)(
-	// 			5 + 45 + float64(i)/float64(ips)*(90/2.0),
-	// 		)
-	// 	}
-
-	// 	w := models.WgConfig{}
-
-	// 	// retrieve the peer for this ID
-	// 	result := database.DB.First(&w, "id = ?", i)
-	// 	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
-	// 		return fmt.Errorf(
-	// 			"failed to look up config for peer conf gen %v: %v",
-	// 			i,
-	// 			result.Error.Error(),
-	// 		)
-	// 	}
-
-	// 	// assert that the IP addresses are equal
-	// 	if ip.S != w.IP {
-	// 		return fmt.Errorf(
-	// 			"ip address mismatch: %v vs. %v",
-	// 			ip.S,
-	// 			w.IP,
-	// 		)
-	// 	}
-
-	// 	// ignore the server when it shows up in this list
-	// 	if w.IP == conf.Server || w.IsServer {
-	// 		// ip = helpers.NextIP(ip)
-	// 		// i++
-	// 		continue
-	// 	}
-
-	// 	// generate the peer config for this peer
-	// 	peerConf, err := GenerateConfig(w, server)
-	// 	if err != nil {
-	// 		return fmt.Errorf(
-	// 			"error generating config for client %v: %v\n",
-	// 			i,
-	// 			err,
-	// 		)
-	// 	}
-
-	// 	w.Config = peerConf
-
-	// 	serverPeer := fmt.Sprintf(
-	// 		"[Peer]\nPublicKey = %s\nAllowedIPs = %s/32\nPresharedKey = %s\n",
-	// 		w.PublicKey,
-	// 		w.IP,
-	// 		w.PreSharedKey,
-	// 	)
-	// 	serverPeers = append(serverPeers, serverPeer)
-
-	// 	// save the config to the database
-	// 	saved := database.DB.Save(&w)
-	// 	if saved.Error != nil {
-	// 		return fmt.Errorf(
-	// 			"failed to save config %v: %v",
-	// 			i,
-	// 			saved.Error.Error(),
-	// 		)
-	// 	}
-	// }
+		var wg sync.WaitGroup
+		// for l := range allIPs[j:end] {
+		for l := j; l < end; l++ {
+			i := uint(l + 1) // the primary key in the db is 1-based index, not 0
+			log.Printf("i=%v, l=%v, j=%v, end=%v", i, l, j, end)
+			if allIPs[l].IsServerIP {
+				continue
+			}
+			wg.Add(1)
+			go prepFnWrapped(&wg, &progress, i, allIPs[l])
+		}
+		wg.Wait()
+	}
 
 	(*setProgressLabel)(
 		fmt.Sprintf(
@@ -676,7 +508,7 @@ func Generate(
 	// 3. Finally, update the server config.
 	(*setProgressLabel)("Saving final server config")
 	(*setProgressValue)(99)
-	server.Config = generateServerConfig(*server, conf, serverPeers, network)
+	server.Config = generateServerConfig(*server, conf, serverPeers.String(), network)
 	saved := database.DB.Save(&server)
 	if saved.Error != nil {
 		return fmt.Errorf(

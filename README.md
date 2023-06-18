@@ -4,6 +4,8 @@ A Fyne-based UI for managing wireguard connections.
 
 ## Roadmap
 
+- add GenForm option to purge all devices that don't belong in the generated list (as opposed to just clearing out everything)
+
 - when updating the server, offer to regenerate everything over again, if feasible?
 - consider adding a ServerDNS field to the genform
 - consider setting the peer config to a password multiline entry if it exists

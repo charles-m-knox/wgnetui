@@ -24,4 +24,6 @@ go.work
 wgnetui
 test.db
 *.db
+*.db-wal
+*.db-shm
 

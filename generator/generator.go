@@ -352,12 +352,22 @@ func Generate(
 		w := models.WgConfig{}
 
 		result := database.DB.First(&w, "id = ?", i)
-		if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
-			return fmt.Errorf(
-				"failed to look up config %v: %v",
-				i,
-				result.Error.Error(),
-			)
+		if result.Error != nil {
+			if result.Error == gorm.ErrRecordNotFound {
+				err := fmt.Errorf(
+					"did not find record by id %v: %v",
+					i,
+					result.Error.Error(),
+				)
+				log.Println(err.Error())
+			} else {
+				err := fmt.Errorf(
+					"failed to look up config %v: %v",
+					i,
+					result.Error.Error(),
+				)
+				return err
+			}
 		}
 
 		// update values. Note that in general, if a value in the form is
@@ -451,6 +461,12 @@ func Generate(
 	// done in one step
 	if serverIPIndex >= 0 && allIPs[serverIPIndex].IsServerIP {
 		err = prepDevice(uint(serverIPIndex)+1, allIPs[serverIPIndex])
+		if err != nil {
+			return fmt.Errorf(
+				"failed to write server: %v",
+				err.Error(),
+			)
+		}
 	} else {
 		return fmt.Errorf(
 			"index of server not valid: %v",
@@ -458,10 +474,20 @@ func Generate(
 		)
 	}
 
+	// reconnect to allow the transaction to finish?
+	database.Reconnect()
+
 	// now find the server we just created and assert that it's valid
 	server = &models.WgConfig{}
 	serverResult := database.DB.First(&server, "is_server = ?", true)
-	if serverResult.Error != nil && serverResult.Error != gorm.ErrRecordNotFound {
+	if serverResult.Error != nil {
+		if serverResult.Error == gorm.ErrRecordNotFound {
+			return fmt.Errorf(
+				"server was not correctly added to db: %v",
+				serverResult.Error.Error(),
+			)
+		}
+
 		return fmt.Errorf(
 			"failed to look up server: %v",
 			serverResult.Error.Error(),

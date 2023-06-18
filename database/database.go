@@ -3,8 +3,11 @@ package database
 import (
 	"database/sql"
 	"log"
+	"os"
+	"path"
 	"time"
 
+	"wgnetui/constants"
 	"wgnetui/models"
 
 	"gorm.io/driver/sqlite"
@@ -19,6 +22,17 @@ var (
 	OpenedFileName string
 	OpenedFilePath string
 )
+
+// Initialize is the function that runs upon app startup only.
+func Initialize() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to get current working dir: %v", err.Error())
+	}
+	OpenedFileName = constants.DefaultFileName
+	OpenedFilePath = path.Join(cwd, constants.DefaultFileName)
+	Connect(OpenedFilePath)
+}
 
 func Reconnect() {
 	if DB == nil || SQLDB == nil {
@@ -39,6 +53,8 @@ func Reconnect() {
 func Connect(file string) *gorm.DB {
 	var err error
 
+	log.Printf("db opening %v", file)
+
 	DB, err = gorm.Open(sqlite.Open(file), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err.Error())
@@ -57,8 +73,8 @@ func Connect(file string) *gorm.DB {
 	DB.Exec("PRAGMA journal_mode=WAL;")
 
 	err = DB.AutoMigrate(
-		&models.WgConfig{},
 		&models.GenerationForm{},
+		&models.WgConfig{},
 	)
 	if err != nil {
 		log.Fatalf("failed to migrate database: %v", err.Error())

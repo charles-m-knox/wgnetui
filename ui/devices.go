@@ -312,7 +312,10 @@ func GetDevicesView() (*container.Split, error) {
 
 		// update the device in the DB
 		SelectedDevice.Name = nameEntry.Text
-		SelectedDevice.Config = configEntry.Text
+		// cannot edit a server config directly, it's disabled
+		if !SelectedDevice.IsServer {
+			SelectedDevice.Config = configEntry.Text
+		}
 		SelectedDevice.Name = nameEntry.Text
 		SelectedDevice.Description = descriptionEntry.Text
 		SelectedDevice.Extra = extraEntry.Text

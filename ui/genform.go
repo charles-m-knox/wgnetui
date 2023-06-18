@@ -151,15 +151,16 @@ func GetWgGenForm() *fyne.Container {
 			}
 
 			ProgressBarDialog.Fresh(
-				"Checking database...",
-				"Hide",
 				"Generating...",
+				"Hide",
+				"Checking database...",
 			)
 
 			ProgressBarDialog.SetProgress(0)
 			ProgressBarDialog.Show()
 			defer ProgressBarDialog.Hide()
 
+			database.Reconnect() // reading the db between writes can cause failures
 			if database.DB == nil {
 				dialog.ShowError(
 					fmt.Errorf(constants.ErrorMessageNoDB),

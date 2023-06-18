@@ -40,7 +40,7 @@ func (p *ProgressDialog) SetDialog() {
 	p.Dialog = dialog.NewCustom(
 		p.Title,
 		p.ButtonText,
-		p.DialogContent,
+		p.GetContent(),
 		*W,
 	)
 }
@@ -58,7 +58,7 @@ func (p *ProgressDialog) SetLabel(l string) {
 		return
 	}
 
-	p.SetLabel(l)
+	p.ProgressLabel.SetText(l)
 }
 
 // SetTitle requires rebuilding the dialog (internally) and is perhaps
@@ -98,7 +98,7 @@ func (p *ProgressDialog) Show() {
 		return
 	}
 
-	p.Show()
+	p.Dialog.Show()
 }
 
 func (p *ProgressDialog) Hide() {
@@ -106,5 +106,5 @@ func (p *ProgressDialog) Hide() {
 		return
 	}
 
-	p.Hide()
+	p.Dialog.Hide()
 }

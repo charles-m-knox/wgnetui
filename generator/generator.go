@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strings"
 
@@ -227,6 +228,13 @@ PostDown = iptables -D FORWARD -i %%i -j ACCEPT; iptables -D FORWARD -o %%i -j A
 	return config
 }
 
+type IPAddress struct {
+	// the ip address as a string value
+	S string
+	// the IP address as a net.IP value
+	IP net.IP
+}
+
 func Generate(
 	conf models.GenerationForm,
 	serverIP net.IP,
@@ -283,11 +291,40 @@ func Generate(
 	// take note of the total number of wireguard configs to generate so we
 	// can accurately render a progress bar readout.
 	wgs := helpers.EstimateNetworkSize(network)
+	log.Printf("expecting %v ip addresses", wgs)
 	generatingMany := wgs > 512
 
+	// take note of every IP address that we have to operate on
+	allIPs := []IPAddress{}
 	ip := firstIP
-	i := uint(1)
+
 	for {
+		ipa := IPAddress{
+			S:  ip.String(),
+			IP: ip,
+		}
+		// if the IP address ends with .0 or .255, skip it
+		if strings.HasSuffix(ipa.S, ".0") || strings.HasSuffix(ipa.S, ".255") {
+			log.Println("skipping ipa:", ipa)
+			ip = helpers.NextIP(ip)
+			continue
+		}
+		if !network.Contains(ip) {
+			break
+		}
+
+		allIPs = append(allIPs, ipa)
+		ip = helpers.NextIP(ip)
+	}
+
+	ips := len(allIPs)
+
+	log.Printf("total IP addresses: %v", ips)
+
+	// ip = firstIP
+	// i := uint(1)
+	for j, ip := range allIPs {
+		i := uint(j + 1)
 		// skip over IP addresses that end with .0
 		// ip4 := ip.To4()
 		// if ip4[3] == 0 {
@@ -295,9 +332,9 @@ func Generate(
 		// 	i++
 		// }
 
-		if !network.Contains(ip) {
-			break
-		}
+		// if !network.Contains(ip) {
+		// 	break
+		// }
 
 		// performance slowdowns start to occur when updating the progress
 		// dialog for large numbers
@@ -306,19 +343,19 @@ func Generate(
 				fmt.Sprintf(
 					"[%v/%v]: Generating keys and configuring peers: Step 1/2",
 					i,
-					wgs,
+					ips,
 				),
 			)
 
 			// At the start of the loop we are 5% done with the full 100%.
 			// We want to get an additional 90% done, leaving
 			// us with 5% remaining. 90% / 2 full iterations of the IP range = 45%,
-			// meaning that (1 / wgs) / 45%.
-			// p1 := float64(i) / float64(wgs)
-			// p2 := (float64(i) / float64(wgs)) * (90 / 2.0)
-			// log.Printf("i=%v, wgs=%v, %v %v", float64(i), float64(wgs), p1, p2)
+			// meaning that (1 / ips) / 45%.
+			// p1 := float64(i) / float64(ips)
+			// p2 := (float64(i) / float64(ips)) * (90 / 2.0)
+			// log.Printf("i=%v, ips=%v, %v %v", float64(i), float64(ips), p1, p2)
 			(*setProgressValue)(
-				5 + (float64(i)/float64(wgs))*(90/2.0),
+				5 + (float64(i)/float64(ips))*(90/2.0),
 			)
 		}
 
@@ -336,10 +373,10 @@ func Generate(
 		// update values. Note that in general, if a value in the form is
 		// left blank, the original value will be preserved where possible.
 		w.ID = i
-		w.IP = ip.String()
+		w.IP = ip.S
 
 		// detect if this is the server's IP address
-		if ip.Equal(serverIP) {
+		if ip.IP.Equal(serverIP) {
 			// found the server ip, set IsServer to true
 			w.IsServer = true
 		} else {
@@ -370,8 +407,8 @@ func Generate(
 			)
 		}
 
-		ip = helpers.NextIP(ip)
-		i++
+		// ip = helpers.NextIP(ip)
+		// i++
 	}
 
 	// 2. Now that the entire sequence of configs has been updated, we can
@@ -396,9 +433,10 @@ func Generate(
 	// proceed with the remainder of step 2:
 	// Generate all peer configs, now that we have the server IP.
 	serverPeers := []string{}
-	ip = firstIP // reset the IP to the original ipRange
-	i = uint(1)  // reset this too
-	for {
+	// ip = firstIP // reset the IP to the original ipRange
+	// i = uint(1)  // reset this too
+	for j, ip := range allIPs {
+		i := uint(j + 1)
 		// skip over IP addresses that end with .0
 		// ip4 := ip.To4()
 		// if ip4[3] == 0 {
@@ -406,9 +444,9 @@ func Generate(
 		// 	i++
 		// }
 
-		if !network.Contains(ip) {
-			break
-		}
+		// if !network.Contains(ip) {
+		// 	break
+		// }
 
 		// performance slowdowns start to occur when updating the progress
 		// dialog for large numbers
@@ -417,16 +455,16 @@ func Generate(
 				fmt.Sprintf(
 					"[%v/%v]: Generating peer configs: Step 2/2",
 					i,
-					wgs,
+					ips,
 				),
 			)
 
 			// At the start of the loop we are 5% done with the full 100%.
 			// We want to get an additional 90% done, leaving
 			// us with 5% remaining. 90% / 2 full iterations of the IP range = 45%,
-			// meaning that (1 / wgs) / 45%.
+			// meaning that (1 / ips) / 45%.
 			(*setProgressValue)(
-				5 + 45 + float64(i)/float64(wgs)*(90/2.0),
+				5 + 45 + float64(i)/float64(ips)*(90/2.0),
 			)
 		}
 
@@ -443,18 +481,18 @@ func Generate(
 		}
 
 		// assert that the IP addresses are equal
-		if ip.String() != w.IP {
+		if ip.S != w.IP {
 			return fmt.Errorf(
 				"ip address mismatch: %v vs. %v",
-				ip.String(),
+				ip.S,
 				w.IP,
 			)
 		}
 
 		// ignore the server when it shows up in this list
 		if w.IP == conf.Server || w.IsServer {
-			ip = helpers.NextIP(ip)
-			i++
+			// ip = helpers.NextIP(ip)
+			// i++
 			continue
 		}
 
@@ -488,15 +526,15 @@ func Generate(
 			)
 		}
 
-		ip = helpers.NextIP(ip)
-		i++
+		// ip = helpers.NextIP(ip)
+		// i++
 	}
 
 	(*setProgressLabel)(
 		fmt.Sprintf(
 			"[%v/%v]: Generation step 2/2 complete",
-			i,
-			wgs,
+			ips,
+			ips,
 		),
 	)
 	(*setProgressValue)(95)
@@ -508,8 +546,7 @@ func Generate(
 	saved := database.DB.Save(&server)
 	if saved.Error != nil {
 		return fmt.Errorf(
-			"failed to save server config %v: %v",
-			i,
+			"failed to save server config: %v",
 			saved.Error.Error(),
 		)
 	}

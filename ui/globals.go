@@ -80,6 +80,9 @@ func InitializeGlobals() {
 		ProgressBar:   widget.NewProgressBar(),
 		ProgressLabel: widget.NewLabel(""),
 	}
+
+	ProgressBarDialog.ProgressBar.Max = 100
+	ProgressBarDialog.ProgressBar.Min = 0
 }
 
 // ExecuteOpenFunctions iterates through the list of global functions that

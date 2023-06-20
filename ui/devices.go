@@ -140,6 +140,7 @@ func GetDevicesView() (*container.Split, error) {
 
 	deviceQR := canvas.NewImageFromImage(initialQR)
 	deviceQR.FillMode = canvas.ImageFillOriginal
+	deviceQR.Hide() // hide by default at first render
 
 	exportConfigToFile := widget.NewButtonWithIcon(
 		constants.ExportConfigToFileButtonLabel,
@@ -160,7 +161,7 @@ func GetDevicesView() (*container.Split, error) {
 			)
 		},
 	)
-	exportConfigToFile.Importance = widget.HighImportance
+	// exportConfigToFile.Importance = widget.HighImportance
 	showQRCodeButton := widget.NewButtonWithIcon(
 		constants.ToggleQRCodeButtonLabel,
 		theme.VisibilityIcon(),
@@ -451,7 +452,13 @@ func GetDevicesView() (*container.Split, error) {
 			showQRCodeButton,
 			deviceQR,
 			exportConfigToFile,
-			deviceEditorForm,
+			container.NewBorder(
+				GetPadding(0, 10),
+				GetPadding(0, 10),
+				GetPadding(10, 0),
+				GetPadding(10, 0),
+				deviceEditorForm,
+			),
 		),
 	)
 

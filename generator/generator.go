@@ -410,7 +410,6 @@ func Generate(
 			)
 			mutex.Lock()
 			serverPeers.WriteString(serverPeer)
-			// serverPeers = append(serverPeers, serverPeer)
 			mutex.Unlock()
 		}
 

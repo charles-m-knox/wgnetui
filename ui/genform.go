@@ -321,7 +321,13 @@ func GetWgGenForm() *fyne.Container {
 		},
 	}
 
-	return container.NewMax(container.NewScroll(container.NewVBox(
-		genForm,
+	return container.NewMax(container.NewScroll(container.NewBorder(
+		GetPadding(0, 10),
+		GetPadding(0, 10),
+		GetPadding(10, 0),
+		GetPadding(10, 0),
+		container.NewVBox(
+			genForm,
+		),
 	)))
 }

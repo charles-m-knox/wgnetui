@@ -4,7 +4,8 @@ A Fyne-based UI for managing wireguard connections.
 
 ## Roadmap
 
-- improve padding in forms
+- always make it easy to find the server in the devices view
+- add Recently Opened view in the landing page tab (currently the About tab)
 - add GenForm option to purge all devices that don't belong in the generated list (as opposed to just clearing out everything)
   - this can be done by querying all devices that are not contained within the current network
   - might be a little slow though, and has to be done after the generation is done

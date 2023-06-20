@@ -140,7 +140,6 @@ func GetDevicesView() (*container.Split, error) {
 
 	deviceQR := canvas.NewImageFromImage(initialQR)
 	deviceQR.FillMode = canvas.ImageFillOriginal
-	deviceQR.Hide() // hide by default at first render
 
 	exportConfigToFile := widget.NewButtonWithIcon(
 		constants.ExportConfigToFileButtonLabel,
@@ -505,6 +504,11 @@ func GetDevicesView() (*container.Split, error) {
 		saveForm()
 	}
 	CtrlSShortcuts[constants.TabDevices] = &devicesCtrlSShortcut
+
+	// select the first device on load
+	if len(devices) > 0 {
+		selectDeviceByID(0)
+	}
 
 	return c, nil
 }

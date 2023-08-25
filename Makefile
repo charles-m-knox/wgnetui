@@ -10,5 +10,11 @@ coverage:
 build:
 	go build
 
+build-prod:
+	go build -ldflags="-w -s -buildid=" -trimpath
+
 lint:
 	golangci-lint run
+
+run:
+	FYNE_SCALE=0.7 ./wgnetui

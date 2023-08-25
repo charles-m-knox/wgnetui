@@ -260,7 +260,8 @@ func GetDevicesView() (*container.Split, error) {
 			}
 			deviceQR.Image = qrc
 			deviceQR.FillMode = canvas.ImageFillContain
-			deviceQR.Hide()
+			deviceQR.SetMinSize(fyne.NewSize(256, 256))
+			deviceQR.Hide() // don't show QR by default, allow toggling
 			deviceQR.Refresh()
 		}
 	}

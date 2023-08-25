@@ -18,3 +18,11 @@ A Fyne-based UI for managing wireguard connections.
 - update the landing screen
 - use a splash screen
 - future: add a tab for pinging other peers, and doing service checks?
+
+## Notes
+
+Order of operations when someone Opens a file:
+
+- read the file from DB
+- refresh the gen form
+- refresh the devices view

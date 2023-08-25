@@ -13,7 +13,7 @@ func InitializeUI() {
 		log.Fatalf("failed to initialize ui: window or app nil ptr")
 	}
 
-	// SetTheme()
+	SetTheme()
 
 	AddQuitShortcut()
 	AddCtrlSShortcut()

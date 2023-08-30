@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+
 	"wgnetui/constants"
 	"wgnetui/database"
 	"wgnetui/ui"
@@ -9,6 +11,13 @@ import (
 )
 
 func init() {
+	flag.StringVar(
+		&database.OpenedFilePath,
+		"db",
+		"",
+		"Path to the database file",
+	)
+	flag.Parse()
 }
 
 func main() {

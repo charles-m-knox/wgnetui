@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"wgnetui/constants"
@@ -23,14 +24,24 @@ var (
 	OpenedFilePath string
 )
 
-// Initialize is the function that runs upon app startup only.
+// Initialize is the function that runs upon app startup only. OpenedFilePath is
+// a global variable (contained in this package) that can be set using command
+// line flags - it will use that value to open the database if specified.
 func Initialize() {
+	if OpenedFilePath != "" {
+		OpenedFileName = filepath.Base(OpenedFilePath)
+		Connect(OpenedFilePath)
+		return
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("failed to get current working dir: %v", err.Error())
 	}
+
 	OpenedFileName = constants.DefaultFileName
 	OpenedFilePath = path.Join(cwd, constants.DefaultFileName)
+
 	Connect(OpenedFilePath)
 }
 

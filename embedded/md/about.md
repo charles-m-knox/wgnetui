@@ -37,3 +37,7 @@ Now, let's suppose you actually wanted to change your CIDR range to something di
 This is where the key persistence feature comes into play - it makes it just a bit easier to change your existing Wireguard clients that are already configured without messing with new keys. Keys will stay familiar to you over time instead of changing constantly.
 
 This behavior can easily be overridden to generate new keys on your next config update by toggling "Regenerate Keys".
+
+## Next steps
+
+Open the `Generator` tab to see what options are available.

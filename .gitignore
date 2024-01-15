@@ -27,3 +27,6 @@ test.db
 *.db-wal
 *.db-shm
 
+build/
+
+screenshots/*.original.png

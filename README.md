@@ -20,8 +20,10 @@ Builds are currently only available for Linux amd64. Other platforms don't seem 
 
 ## Roadmap
 
-This is more of a TODO list than a formal roadmap. Some of these may already be done. Will revisit.
+This is more of a wishlist/TODO list than a formal roadmap. Some of these may already be done. Will revisit.
 
+- fix error that shows on startup when starting a new DB
+- fix the devices list not always populating correctly
 - always make it easy to find the server in the devices view
 - add Recently Opened view in the landing page tab (currently the About tab)
 - add GenForm option to purge all devices that don't belong in the generated list (as opposed to just clearing out everything)

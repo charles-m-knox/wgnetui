@@ -66,7 +66,7 @@ build-linux-amd64: mkbuilddir
 	rm -f $(BIN)-linux-amd64
 	upx --best -o ./$(BIN)-linux-amd64 $(BIN)-linux-amd64-uncompressed
 
-build-all: mkbuilddir build-linux-amd64 build-linux-arm64 build-win-amd64 build-mac-amd64 build-mac-arm64
+build-all: mkbuilddir build-linux-amd64 build-win-amd64 build-mac-amd64 # build-mac-arm64 build-linux-arm64
 
 delete-builds:
 	rm $(BUILDDIR)/*

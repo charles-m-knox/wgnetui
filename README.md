@@ -16,6 +16,8 @@ What makes `wgnetui` useful is persistence between changes in the CIDR that you'
 
 `wgnetui` is extremely unpolished software and is not ready for public use. However, if you know how to use it, it solves the job that it was written to solve, there are just some unfinished quirks that may come up along the way. I have been successfully using it for half a year without many issues.
 
+Builds are currently only available for Linux amd64. Other platforms don't seem to cross-compile for me yet.
+
 ## Roadmap
 
 This is more of a TODO list than a formal roadmap. Some of these may already be done. Will revisit.
@@ -47,3 +49,5 @@ This was my first serious attempt at a project with Fyne. I hope that Fyne conti
 - light/dark themes as well as `FYNE_SCALE` options are difficult to work with and seem more like OS globals outside of the scope of any particular Fyne app than values I can provide configurable options for. The scaling in particular does not look good by default on the systems I've tested, so I have to set it to `0.7` manually as an environment variable, e.g. `FYNE_SCALE=0.7 ./wgnetui`. This is undesirable.
 
 In the future, if I get the time, I would prefer to abandon Fyne in favor of a terminal user interface (TUI) application. I have successfully written others in recent times and prefer the interface.
+
+Another caveat to add to this discussion is that I currently do not have builds working for any of the platforms described in the Makefile, except Linux amd64. This could be because of the fact that sqlite requires CGO, as well as Fyne also having some cross-compilation issues. This is just a greater motivation for a TUI rewrite sometime!
